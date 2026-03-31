@@ -775,6 +775,138 @@ export const createGroupChat = async (request, reply) => {
 // UPDATE GROUP PERMISSIONS HELPERS
 // ============================================================================
 
+// export const updateGroupPermissions = async (request: any, reply: any) => {
+//   try {
+//     const {
+//       conversationId,
+//       adminId,
+//       allowMemberAdd,
+//       allowMemberMessage,
+//       allowEditGroupInfo,
+//     } = request.body;
+//     const prisma = request.server.prisma;
+
+//     const missingField = ["conversationId", "adminId"].find(
+//       (field) => !request.body[field]
+//     );
+//     if (missingField) {
+//       return reply.status(400).send({
+//         success: false,
+//         message: `${missingField} is required!`,
+//       });
+//     }
+
+//     ["allowMemberAdd", "allowMemberMessage", "allowEditGroupInfo"].forEach(
+//       (field) => {
+//         if (typeof request.body[field] !== "boolean") {
+//           return reply.status(400).send({
+//             success: false,
+//             message: `${field} must be a boolean`,
+//           });
+//         }
+//       }
+//     );
+
+//     const conversation = await prisma.conversation.findFirst({
+//       where: { id: conversationId, isGroup: true },
+//     });
+
+//     if (!conversation) {
+//       return reply.status(404).send({
+//         success: false,
+//         message: "Conversation not found",
+//       });
+//     }
+
+//     const isAdmin = await prisma.conversationMember.findFirst({
+//       where: {
+//         conversationId: conversationId,
+//         userId: parseInt(adminId),
+//         isAdmin: true,
+//       },
+//     });
+//     console.log(isAdmin);
+//     if (!isAdmin) {
+//       return reply.status(403).send({
+//         success: false,
+//         message: "Only group admin can update permissions",
+//       });
+//     }
+
+//     const updatedConversation = await prisma.conversation.update({
+//       where: { id: conversationId },
+//       data: {
+//         allowMemberAdd:
+//           allowMemberAdd !== undefined
+//             ? allowMemberAdd
+//             : conversation.allowMemberAdd,
+//         allowMemberMessage:
+//           allowMemberMessage !== undefined
+//             ? allowMemberMessage
+//             : conversation.allowMemberMessage,
+//         allowEditGroupInfo:
+//           allowEditGroupInfo !== undefined
+//             ? allowEditGroupInfo
+//             : conversation.allowEditGroupInfo,
+//       },
+//     });
+
+//     // Fetch members for socket event
+//     const members = await prisma.conversationMember.findMany({
+//       where: {
+//         conversationId: conversationId,
+//         isDeleted: false,
+//       },
+//       select: {
+//         userId: true,
+//       },
+//     });
+
+//     //socket event to all group members
+//     setImmediate(() => {
+//       try {
+//         const recipientIds = members
+//           .filter(
+//             (member) =>
+//               member.userId !== null && member.userId !== parseInt(adminId)
+//           )
+//           .map((member) => member.userId!.toString());
+
+//         const socketData = {
+//           success: true,
+//           message: "Group permissions updated successfully",
+//           data: updatedConversation,
+//         };
+
+//         if (recipientIds.length > 0) {
+//           request.server.io
+//             .to(recipientIds)
+//             .emit("group_permissions_updated", socketData);
+//           console.log("recipientIds", recipientIds);
+//           console.log("updatedConversation", socketData);
+//         }
+//       } catch (error) {
+//         request.log.error(
+//           error,
+//           "Error emitting group_permissions_updated event"
+//         );
+//       }
+//     });
+
+//     return reply.status(200).send({
+//       success: true,
+//       message: "Permissions updated successfully",
+//       data: updatedConversation,
+//     });
+//   } catch (error) {
+//     return reply.status(500).send({
+//       success: false,
+//       message: "Failed to update group permissions",
+//       error: process.env.NODE_ENV === "development" ? error.message : undefined,
+//     });
+//   }
+// }; 
+
 export const updateGroupPermissions = async (request: any, reply: any) => {
   try {
     const {
@@ -783,12 +915,15 @@ export const updateGroupPermissions = async (request: any, reply: any) => {
       allowMemberAdd,
       allowMemberMessage,
       allowEditGroupInfo,
+      allowMemberShow, // new field
     } = request.body;
+
     const prisma = request.server.prisma;
 
     const missingField = ["conversationId", "adminId"].find(
       (field) => !request.body[field]
     );
+
     if (missingField) {
       return reply.status(400).send({
         success: false,
@@ -796,16 +931,22 @@ export const updateGroupPermissions = async (request: any, reply: any) => {
       });
     }
 
-    ["allowMemberAdd", "allowMemberMessage", "allowEditGroupInfo"].forEach(
-      (field) => {
-        if (typeof request.body[field] !== "boolean") {
-          return reply.status(400).send({
-            success: false,
-            message: `${field} must be a boolean`,
-          });
-        }
+    [
+      "allowMemberAdd",
+      "allowMemberMessage",
+      "allowEditGroupInfo",
+      "allowMemberShow", // new field
+    ].forEach((field) => {
+      if (
+        request.body[field] !== undefined &&
+        typeof request.body[field] !== "boolean"
+      ) {
+        return reply.status(400).send({
+          success: false,
+          message: `${field} must be a boolean`,
+        });
       }
-    );
+    });
 
     const conversation = await prisma.conversation.findFirst({
       where: { id: conversationId, isGroup: true },
@@ -825,7 +966,7 @@ export const updateGroupPermissions = async (request: any, reply: any) => {
         isAdmin: true,
       },
     });
-    console.log(isAdmin);
+
     if (!isAdmin) {
       return reply.status(403).send({
         success: false,
@@ -840,18 +981,24 @@ export const updateGroupPermissions = async (request: any, reply: any) => {
           allowMemberAdd !== undefined
             ? allowMemberAdd
             : conversation.allowMemberAdd,
+
         allowMemberMessage:
           allowMemberMessage !== undefined
             ? allowMemberMessage
             : conversation.allowMemberMessage,
+
         allowEditGroupInfo:
           allowEditGroupInfo !== undefined
             ? allowEditGroupInfo
             : conversation.allowEditGroupInfo,
+
+        allowMemberShow:
+          allowMemberShow !== undefined
+            ? allowMemberShow
+            : conversation.allowMemberShow, // new field
       },
     });
 
-    // Fetch members for socket event
     const members = await prisma.conversationMember.findMany({
       where: {
         conversationId: conversationId,
@@ -862,7 +1009,6 @@ export const updateGroupPermissions = async (request: any, reply: any) => {
       },
     });
 
-    //socket event to all group members
     setImmediate(() => {
       try {
         const recipientIds = members
@@ -882,8 +1028,6 @@ export const updateGroupPermissions = async (request: any, reply: any) => {
           request.server.io
             .to(recipientIds)
             .emit("group_permissions_updated", socketData);
-          console.log("recipientIds", recipientIds);
-          console.log("updatedConversation", socketData);
         }
       } catch (error) {
         request.log.error(

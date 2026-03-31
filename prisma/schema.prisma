@@ -57,6 +57,7 @@ model Conversation {
   allowMemberAdd     Boolean @default(false)
   allowMemberMessage Boolean @default(true)
   allowEditGroupInfo Boolean @default(false)
+  allowMemberShow Boolean @default(false)
 
   // Relations
   members  ConversationMember[] //jader ami block korechi
