@@ -104,6 +104,7 @@ model ConversationMember {
   muteAt DateTime?
 
   join_timestamp String?
+  expire_timestamp String?
 
   @@unique([userId, conversationId])
   @@index([conversationId, isDeleted])
