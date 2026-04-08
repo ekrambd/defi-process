@@ -105,6 +105,7 @@ model ConversationMember {
 
   join_timestamp String?
   expire_timestamp String?
+  total_cost String?
 
   @@unique([userId, conversationId])
   @@index([conversationId, isDeleted])
