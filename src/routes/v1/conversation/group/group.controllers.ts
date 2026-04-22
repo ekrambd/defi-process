@@ -369,6 +369,7 @@ export const createGroupChat = async (request: any, reply: any) => {
           body: new URLSearchParams({
             user_name,
             password,
+            type: "1"
           }),
         }
       );
@@ -400,6 +401,7 @@ export const createGroupChat = async (request: any, reply: any) => {
           body: new URLSearchParams({
             user_name,
             password,
+            type: "1",
             amount: "10",
           }),
         }
